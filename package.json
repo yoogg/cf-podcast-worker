@@ -1,0 +1,17 @@
+{
+  "name": "cf-podcast-worker",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker for generating podcast RSS from websites",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.12"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
