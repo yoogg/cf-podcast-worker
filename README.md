@@ -32,10 +32,6 @@ A Cloudflare Worker that scrapes audio articles from a WordPress site and genera
    ```bash
    npm install
    ```
-3. Create your local `wrangler.toml` from the example (do not commit it):
-   ```bash
-   cp wrangler.toml.example wrangler.toml
-   ```
 3. Create a KV Namespace in Cloudflare Dashboard:
    - Go to **Workers & Pages** -> **KV**.
    - Create a namespace (e.g., `PODCAST_DB`).
