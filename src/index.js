@@ -16,6 +16,10 @@ export default {
         if (path === '/admin' && method === 'GET') {
             return handleAdminList(request, env);
         }
+        // Admin feed editor (GET renders the form, POST saves)
+        if (path === '/admin/feed' && method === 'GET') {
+            return handleAdminList(request, env);
+        }
         if (path === '/admin/feed' && method === 'POST') {
             return handleAdminFeed(request, env);
         }
