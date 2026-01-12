@@ -1,6 +1,6 @@
 # Podcast RSS Generator (Cloudflare Worker)
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/<YOUR_GITHUB_USERNAME>/<YOUR_REPO>)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/yoogg/cf-podcast-worker)
 
 A Cloudflare Worker that scrapes audio articles from a WordPress site and generates a valid Podcast RSS feed. Features a multi-feed management system with token-based authentication and User-Agent restrictions.
 
