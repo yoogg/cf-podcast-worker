@@ -55,14 +55,6 @@ Visit `http://localhost:8787/admin`.
 npm run deploy
 ```
 
-### GitHub Actions (Auto Deploy)
-
-This repo includes a GitHub Actions workflow that can auto-create (or reuse) the required KV namespaces and deploy the Worker.
-
-Set these repository secrets:
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
-
 ### Admin Interface
 
 The worker comes with a built-in admin interface at `/admin`.
