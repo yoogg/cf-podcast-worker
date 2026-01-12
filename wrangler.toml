@@ -5,8 +5,8 @@ compatibility_date = "2024-01-01"
 # KV Namespace for storing config and podcast data
 [[kv_namespaces]]
 binding = "PODCAST_KV"
-id = "YOUR_KV_NAMESPACE_ID"        # Replace with actual ID after creation
-preview_id = "YOUR_PREVIEW_KV_ID"  # Replace with actual preview ID
+id = ""        # Replace with actual ID after creation
+preview_id = ""  # Replace with actual preview ID
 
 [vars]
 # Default admin password (change in production or use KV)
