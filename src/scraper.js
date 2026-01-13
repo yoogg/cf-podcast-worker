@@ -190,8 +190,9 @@ export async function getCachedArticles(env, feedId) {
 }
 
 // Save cached articles for a specific feed
-export async function saveCachedArticles(env, feedId, articles) {
-    const trimmed = articles.slice(0, 50);
+export async function saveCachedArticles(env, feedId, articles, maxItems = 10) {
+    const limit = Number.isFinite(Number(maxItems)) && Number(maxItems) > 0 ? Number(maxItems) : 10;
+    const trimmed = articles.slice(0, limit);
     await env.PODCAST_KV.put('FEED_DATA:' + feedId, JSON.stringify(trimmed));
 }
 
@@ -234,7 +235,8 @@ export async function fetchAndCacheLatest(env, feedId, feed = null) {
     }
 
     cached.unshift(article);
-    await saveCachedArticles(env, feedId, cached);
+    const maxItems = Number.isFinite(Number(feed.cacheLimit)) && Number(feed.cacheLimit) > 0 ? Number(feed.cacheLimit) : 10;
+    await saveCachedArticles(env, feedId, cached, maxItems);
 
     return { added: true, article, cached: cached.length };
 }

@@ -186,6 +186,7 @@ function renderAdminListPage(feeds, baseUrl, message = '') {
 // Render Feed Edit Page
 function renderFeedEditPage(feed, feedId, baseUrl, message = '') {
     const isNew = !feedId;
+  const cacheLimit = Number.isFinite(Number(feed?.cacheLimit)) && Number(feed?.cacheLimit) > 0 ? Number(feed.cacheLimit) : 10;
     return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -274,6 +275,10 @@ function renderFeedEditPage(feed, feedId, baseUrl, message = '') {
         <textarea name="description" placeholder="这是一个自动生成的播客...">${escapeHtml(feed?.description || '')}</textarea>
         <label>封面图 URL</label>
         <input type="url" name="coverImage" value="${escapeHtml(feed?.coverImage || '')}" placeholder="https://example.com/cover.jpg">
+
+        <label>缓存节目上限</label>
+        <input type="number" name="cacheLimit" value="${cacheLimit}" min="1" step="1" placeholder="10">
+        <p class="help">默认 10；超过后仅保留最新 N 期，避免 KV 缓存过大</p>
       </div>
       <div class="section">
         <h3>🔒 访问控制</h3>
@@ -330,6 +335,9 @@ export async function handleAdminFeed(request, env) {
     const allowedUAStr = formData.get('allowedUA') || '*';
     const allowedUA = allowedUAStr.split(',').map(s => s.trim()).filter(Boolean);
 
+    let cacheLimit = parseInt(formData.get('cacheLimit') || '10', 10);
+    if (!Number.isFinite(cacheLimit) || cacheLimit <= 0) cacheLimit = 10;
+
     feeds[feedId] = {
         token: feeds[feedId]?.token || generateToken(),
         loginUrl: formData.get('loginUrl') || '',
@@ -339,7 +347,8 @@ export async function handleAdminFeed(request, env) {
         title: formData.get('title') || 'My Podcast',
         description: formData.get('description') || '',
         coverImage: formData.get('coverImage') || '',
-        allowedUA
+      allowedUA,
+      cacheLimit
     };
 
     await saveFeeds(env, feeds);
