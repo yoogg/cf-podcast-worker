@@ -4,7 +4,7 @@
  * Includes token-based auth and UA restriction
  */
 import { getFeedByToken } from './admin.js';
-import { getCachedArticles } from './scraper.js';
+import { getCachedArticles, fetchAndCacheLatest } from './scraper.js';
 
 // Check if UA is allowed
 function checkUA(request, feed) {
@@ -95,7 +95,18 @@ export async function handleRss(request, env, ctx, token) {
     }
 
     // Get cached articles
-    const articles = await getCachedArticles(env, feed.id);
+    let articles = await getCachedArticles(env, feed.id);
+
+    // If no cached articles, auto-fetch latest (lazy scrape on first access)
+    if (articles.length === 0) {
+        try {
+            await fetchAndCacheLatest(env, feed.id, feed);
+            articles = await getCachedArticles(env, feed.id);
+        } catch (e) {
+            // Ignore fetch errors, will return empty feed
+            console.error('Auto-fetch failed:', e.message);
+        }
+    }
 
     // Generate RSS
     const xml = generateRssXml(feed, articles);

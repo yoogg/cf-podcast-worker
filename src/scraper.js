@@ -14,17 +14,19 @@ const MIME_TYPES = {
     '.ogg': 'audio/ogg'
 };
 
-// Login and return cookies
+// Login and return cookies (follows redirects to gather all session cookies)
 async function login(feed) {
     const loginUrl = feed.loginUrl;
     const homepage = feed.homepage;
 
+    // Step 1: GET login page to grab initial cookies (test cookie, etc.)
     const initResp = await fetch(loginUrl, {
-        headers: { 'User-Agent': USER_AGENT }
+        headers: { 'User-Agent': USER_AGENT },
+        redirect: 'manual'
     });
-
     let cookies = extractCookies(initResp.headers);
 
+    // Step 2: POST credentials
     const formData = new URLSearchParams({
         'log': feed.username,
         'pwd': feed.password,
@@ -34,7 +36,7 @@ async function login(feed) {
         'testcookie': '1'
     });
 
-    const loginResp = await fetch(loginUrl, {
+    let resp = await fetch(loginUrl, {
         method: 'POST',
         headers: {
             'User-Agent': USER_AGENT,
@@ -45,15 +47,24 @@ async function login(feed) {
         body: formData.toString(),
         redirect: 'manual'
     });
+    cookies = mergeCookies(cookies, extractCookies(resp.headers));
 
-    const newCookies = extractCookies(loginResp.headers);
-    cookies = mergeCookies(cookies, newCookies);
+    // Step 3: Follow up to 5 redirects to accumulate all cookies
+    for (let i = 0; i < 5; i++) {
+        const location = resp.headers.get('location');
+        if (!location) break;
+        resp = await fetch(location, {
+            headers: { 'User-Agent': USER_AGENT, 'Cookie': cookies },
+            redirect: 'manual'
+        });
+        cookies = mergeCookies(cookies, extractCookies(resp.headers));
+    }
 
     if (cookies.includes('wordpress_logged_in')) {
         return cookies;
     }
 
-    throw new Error('Login failed');
+    throw new Error('Login failed: wordpress_logged_in cookie not found');
 }
 
 function extractCookies(headers) {
@@ -168,7 +179,7 @@ async function parseArticle(url, cookies) {
 }
 
 // Get cached articles for a specific feed
-async function getCachedArticles(env, feedId) {
+export async function getCachedArticles(env, feedId) {
     const dataStr = await env.PODCAST_KV.get('FEED_DATA:' + feedId);
     if (!dataStr) return [];
     try {
@@ -179,74 +190,78 @@ async function getCachedArticles(env, feedId) {
 }
 
 // Save cached articles for a specific feed
-async function saveCachedArticles(env, feedId, articles) {
+export async function saveCachedArticles(env, feedId, articles) {
     const trimmed = articles.slice(0, 50);
     await env.PODCAST_KV.put('FEED_DATA:' + feedId, JSON.stringify(trimmed));
 }
 
-// Handle update for a specific feed
+/**
+ * Fetch latest article and cache it (used by RSS lazy-load and manual update)
+ * @param {object} env - Worker env bindings
+ * @param {string} feedId - Feed ID
+ * @param {object} feed - Feed config object (optional, will fetch from KV if not provided)
+ * @returns {object} - { added: boolean, article?: object, cached: number }
+ */
+export async function fetchAndCacheLatest(env, feedId, feed = null) {
+    if (!feed) {
+        feed = await getFeedById(env, feedId);
+    }
+    if (!feed) {
+        throw new Error('Feed not found');
+    }
+    if (!feed.username || !feed.password) {
+        throw new Error('Login credentials not configured');
+    }
+
+    const cookies = await login(feed);
+    const latestLink = await getLatestArticleLink(feed, cookies);
+
+    if (!latestLink) {
+        throw new Error('No articles found on homepage');
+    }
+
+    const cached = await getCachedArticles(env, feedId);
+    const alreadyExists = cached.some(a => a.link === latestLink);
+
+    if (alreadyExists) {
+        return { added: false, cached: cached.length };
+    }
+
+    const article = await parseArticle(latestLink, cookies);
+
+    if (!article.audioUrl) {
+        throw new Error('Latest article has no audio');
+    }
+
+    cached.unshift(article);
+    await saveCachedArticles(env, feedId, cached);
+
+    return { added: true, article, cached: cached.length };
+}
+
+// Handle update for a specific feed (HTTP endpoint wrapper)
 export async function handleUpdate(request, env, feedId) {
     try {
-        const feed = await getFeedById(env, feedId);
+        const result = await fetchAndCacheLatest(env, feedId);
 
-        if (!feed) {
-            return new Response(JSON.stringify({ error: 'Feed not found' }), {
-                status: 404,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-
-        if (!feed.username || !feed.password) {
-            return new Response(JSON.stringify({ error: 'Please configure login credentials' }), {
-                status: 400,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-
-        const cookies = await login(feed);
-        const latestLink = await getLatestArticleLink(feed, cookies);
-
-        if (!latestLink) {
-            return new Response(JSON.stringify({ error: 'No articles found' }), {
-                status: 404,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-
-        const cached = await getCachedArticles(env, feedId);
-        const alreadyExists = cached.some(a => a.link === latestLink);
-
-        if (alreadyExists) {
+        if (result.added) {
+            return new Response(JSON.stringify({
+                message: 'New article added',
+                article: result.article.title,
+                totalCached: result.cached
+            }), { headers: { 'Content-Type': 'application/json' } });
+        } else {
             return new Response(JSON.stringify({
                 message: 'Already up to date',
-                totalCached: cached.length
+                totalCached: result.cached
             }), { headers: { 'Content-Type': 'application/json' } });
         }
-
-        const article = await parseArticle(latestLink, cookies);
-
-        if (!article.audioUrl) {
-            return new Response(JSON.stringify({ error: 'Latest article has no audio' }), {
-                status: 400,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-
-        cached.unshift(article);
-        await saveCachedArticles(env, feedId, cached);
-
-        return new Response(JSON.stringify({
-            message: 'New article added',
-            article: article.title,
-            totalCached: cached.length
-        }), { headers: { 'Content-Type': 'application/json' } });
-
     } catch (error) {
+        const status = error.message.includes('not found') ? 404 : 
+                       error.message.includes('credentials') ? 400 : 500;
         return new Response(JSON.stringify({ error: error.message }), {
-            status: 500,
+            status,
             headers: { 'Content-Type': 'application/json' }
         });
     }
 }
-
-export { getCachedArticles };
