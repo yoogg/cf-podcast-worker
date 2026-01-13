@@ -13,7 +13,7 @@ function copyAndOpenPodcastHtml(pageUrl) {
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>正在跳转</title>
+    <title>正在订阅播客</title>
     <style>
         body { margin: 0; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background: #0b1220; color: #e5e7eb; }
         .wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
@@ -26,8 +26,8 @@ function copyAndOpenPodcastHtml(pageUrl) {
 <body>
     <div class="wrap">
         <div class="card">
-            <div style="font-size:18px;font-weight:700;margin-bottom:8px;">访问受限</div>
-            <div class="hint">已尝试复制当前 RSS 链接，并跳转到 <code>podcast://</code></div>
+            <div style="font-size:18px;font-weight:700;margin-bottom:8px;">订阅播客</div>
+            <div class="hint">复制当前 RSS 链接，并跳转播客</div>
             <div class="url">${escapedUrl}</div>
             <button class="btn" id="go">复制并跳转</button>
             <div class="hint" id="status"></div>
@@ -68,12 +68,10 @@ function copyAndOpenPodcastHtml(pageUrl) {
         async function doAll() {
             const ok = await copyText(url);
             status.textContent = ok ? '已复制链接，正在跳转…' : '复制失败，请手动复制上方链接后打开播客 App。';
-            setTimeout(openPodcast, 300);
+            openPodcast();
         }
 
         document.getElementById('go').addEventListener('click', doAll);
-        // 自动尝试一次（可能因浏览器策略失败，按钮可再试）
-        doAll();
     </script>
 </body>
 </html>`;
